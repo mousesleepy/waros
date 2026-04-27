@@ -1,0 +1,92 @@
+[routeros]
+
+; RouterOS 7 address (IP or hostname)
+ip = 192.168.1.1
+
+; REST API port (default 443 for HTTPS, 80 for HTTP)
+port = 443
+
+; API username (dedicated limited user recommended)
+user = wazuh-ar
+
+; API password
+password = CHANGEME
+
+; Use HTTPS (strongly recommended)
+use_ssl = true
+
+; Skip SSL certificate verification (for self-signed certs)
+verify_ssl = false
+
+; Enable verbose API request/response logging to stderr
+debug = false
+
+; Local .id cache file (maps IP -> RouterOS .id for fast operations)
+; Default: <system_temp>/waros_cache.txt (writable without root)
+; cache_file = /tmp/waros_cache.txt
+
+
+[block]
+
+; Address-list name on RouterOS to store blocked IPs
+list_name = wazuh-blocked
+
+; Base timeout for blocks (0 = permanent, examples: 1h, 6h, 1d, 7d, 30d)
+timeout = 10m
+
+; Timeout calculation mode:
+;   linear      — timeout = base * max(level, 1) * escalation (default)
+;   exponential — timeout = base * escalation^(level-1)
+; Exponential mode makes high-level threats escalate much faster while keeping
+; low-level blocks short. At escalation=1.5, level 1 = base, level 10 = 38x base.
+timeout_mode = linear
+
+; Escalation coefficient. Meaning depends on timeout_mode:
+;   linear      — direct multiplier on the result
+;   exponential — base of the power function (growth rate)
+; Values < 1.0 soften blocking, > 1.0 tighten it.
+timeout_escalation = 1.5
+
+; Maximum timeout cap (won't grow beyond this)
+timeout_max = 30d
+
+; firedtimes divisor — how many rule hits add +1 to effective level.
+; effective_level = rule.level + floor(rule.firedtimes / firedtimes_divisor)
+; E.g. divisor=50, firedtimes=333 -> +6 to level.
+; Higher divisor = slower escalation from repeat offenders.
+firedtimes_divisor = 50
+
+; --- srcip resolution ---
+; Comma-separated dot-paths into the alert JSON. First path that yields a
+; valid IP wins. To add a new source, just append a new path — no code changes.
+; Examples:
+;   srcip                         — alert top-level field
+;   data.srcip                    — inside data sub-object
+;   data.transaction.client_ip    — ModSecurity audit log format
+; If IP is not found in any path, the alert is logged as an error and no
+; block is performed.
+srcip_sources = data.srcip, data.transaction.client_ip
+
+; Comment template for address-list entries
+; Available placeholders:
+;   {srcip}           — source IP address
+;   {rule}            — Wazuh rule ID
+;   {description}     — Wazuh rule description
+;   {agent_id}        — Wazuh agent ID
+;   {agent_name}      — Wazuh agent name
+;   {datetime}        — timestamp of block (ISO 8601)
+;   {level}           — Wazuh rule level (base)
+;   {firedtimes}      — how many times the rule has fired (raw count)
+;   {level_bonus}     — floor(firedtimes / divisor) — escalation bonus
+;   {effective_level} — level + level_bonus
+;   {ttl}             — current timeout value
+comment_template = "{rule} | {agent_name} | {datetime} | lvl={effective_level} ({level}+{level_bonus}) ttl={ttl} | {description}"
+
+
+[logging]
+
+; Log level: ERROR (0), WARN (1), INFO (2), DEBUG (3)
+level = INFO
+
+; Syslog facility: LOCAL0 through LOCAL7
+facility = LOCAL0
