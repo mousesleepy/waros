@@ -511,7 +511,6 @@ RosRestClient.php    — HTTP-клиент для REST API RouterOS 7
 BlockManager.php     — логика блокировки, кэш, вычисление таймаутов, логирование в syslog
 CliOptio.php         — библиотека разбора CLI-опций (обязательная зависимость)
 waros.conf.sample    — пример конфигурации
-test_CliOptio.php    — модульные тесты CliOptio
 ```
 
 ## Лицензия
